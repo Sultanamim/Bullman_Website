@@ -18,7 +18,17 @@ export default function CartBox({ setAmount }) {
   useEffect(() => {
     const initialQuantities = {};
     cartItems.forEach((item) => {
-      initialQuantities[item.id] = 1; // Assuming initial quantity is 1 for all items
+      if (item.selectedVariants.length > 0) {
+        item.selectedVariants.forEach((variant) => {
+          const variantKey = Object.keys(variant).find(
+            (key) => key !== "priceInclTax" && key !== "quantity"
+          );
+          initialQuantities[`${item.name}-${variant[variantKey]}`] =
+            variant.quantity;
+        });
+      } else {
+        initialQuantities[item.name] = item.quantity;
+      }
     });
     setQuantities(initialQuantities);
   }, [cartItems]);
@@ -44,36 +54,55 @@ export default function CartBox({ setAmount }) {
     let totalWithVAT = 0;
 
     cartItems.forEach((item) => {
-      const itemTotal = parseInt(item.price) * quantities[item.id];
-      totalWithoutVAT += itemTotal;
-    });
+      if (item.selectedVariants.length > 0) {
+        item.selectedVariants.forEach((variant) => {
+          const variantKey = Object.keys(variant).find(
+            (key) => key !== "priceInclTax" && key !== "quantity"
+          );
+          const itemKey = `${item.name}-${variant[variantKey]}`;
+          const variantQuantity = quantities[itemKey] || variant.quantity;
+          const itemTotalExclVAT = variant.priceExclTax * variantQuantity;
+          const itemTotalInclVAT = variant.priceInclTax * variantQuantity;
 
-    totalVAT = totalWithoutVAT * 0.2; // Assuming 20% VAT
-    totalWithVAT = totalWithoutVAT + totalVAT;
+          totalWithoutVAT += itemTotalExclVAT;
+          totalWithVAT += itemTotalInclVAT;
+          totalVAT += itemTotalInclVAT - itemTotalExclVAT;
+        });
+      } else {
+        const itemQuantity = quantities[item.name] || item.quantity;
+        const itemTotalExclVAT = item.priceExclTax * itemQuantity;
+        const itemTotalInclVAT = item.priceInclTax * itemQuantity;
+
+        totalWithoutVAT += itemTotalExclVAT;
+        totalWithVAT += itemTotalInclVAT;
+        totalVAT += itemTotalInclVAT - itemTotalExclVAT;
+      }
+    });
 
     setTotalWithoutVAT(totalWithoutVAT.toFixed(2));
     setTotalVAT(totalVAT.toFixed(2));
     setTotalWithVAT(totalWithVAT.toFixed(2));
   };
 
-  const increaseQuantity = (itemId) => {
+  const increaseQuantity = (itemKey) => {
     setQuantities((prevQuantities) => ({
       ...prevQuantities,
-      [itemId]: (prevQuantities[itemId] || 0) + 1,
+      [itemKey]: (prevQuantities[itemKey] || 0) + 1,
     }));
   };
 
-  const decreaseQuantity = (itemId) => {
+  const decreaseQuantity = (itemKey) => {
     setQuantities((prevQuantities) => ({
       ...prevQuantities,
-      [itemId]:
-        (prevQuantities[itemId] || 1) > 1 ? prevQuantities[itemId] - 1 : 1,
+      [itemKey]:
+        (prevQuantities[itemKey] || 1) > 1 ? prevQuantities[itemKey] - 1 : 1,
     }));
   };
 
   const toggleAccordion = () => {
     setIsExpanded((prevIsExpanded) => !prevIsExpanded);
   };
+  console.log(quantities);
 
   setAmount(parseInt(totalWithVAT));
   return (
@@ -101,25 +130,29 @@ export default function CartBox({ setAmount }) {
       >
         {cartItems.length > 0 ? (
           cartItems.map((item) => (
-            <div key={item.id} className="relative flex flex-col p-[10px] mt-2">
+            <div
+              key={item._id}
+              className="relative flex flex-col p-[10px] mt-2"
+            >
               <i
                 className="fa-solid fa-xmark absolute top-2 right-2 text-[#333] text-[14px] cursor-pointer"
-                onClick={() => removeFromCart(item.id)}
+                onClick={() => removeFromCart(item.uniqueKey)}
               ></i>
               <div className="cursor-pointer">
                 <div className="flex flex-row items-center">
                   <Link
-                    href={
-                      item.product.products
-                        ? {
-                            pathname: `/package-shop/${item.name}`,
-                            query: { product: JSON.stringify(item.product) },
-                          }
-                        : {
-                            pathname: `/shop/${item.name}`,
-                            query: { product: JSON.stringify(item.product) },
-                          }
-                    }
+                    // href={
+                    //   item.product.products
+                    //     ? {
+                    //         pathname: `/package-shop/${item.name}`,
+                    //         query: { product: JSON.stringify(item.product) },
+                    //       }
+                    //     : {
+                    //         pathname: `/shop/${item.name}`,
+                    //         query: { product: JSON.stringify(item.product) },
+                    //       }
+                    // }
+                    href="#"
                   >
                     <Image
                       src={item.image}
@@ -130,53 +163,103 @@ export default function CartBox({ setAmount }) {
                   </Link>
                   <div className="flex flex-col mx-5">
                     <Link
-                      href={
-                        item.product.products
-                          ? {
-                              pathname: `/package-shop/${item.name}`,
-                              query: {
-                                product: JSON.stringify(item.product),
-                              },
-                            }
-                          : {
-                              pathname: `/shop/${item.name}`,
-                              query: {
-                                product: JSON.stringify(item.product),
-                              },
-                            }
-                      }
+                      // href={
+                      //   item.product.products
+                      //     ? {
+                      //         pathname: `/package-shop/${item.name}`,
+                      //         query: {
+                      //           product: JSON.stringify(item.product),
+                      //         },
+                      //       }
+                      //     : {
+                      //         pathname: `/shop/${item.name}`,
+                      //         query: {
+                      //           product: JSON.stringify(item.product),
+                      //         },
+                      //       }
+                      // }
+                      href="#"
                     >
                       <p className="text-[#333] text-[14px] mb-3">
                         {item.name}
                       </p>
                     </Link>
-                    <div className="flex flex-row h-[35px] items-center">
-                      <div className="border px-5 py-[5px] flex items-center justify-center">
-                        {quantities[item.id]}
+                    {item.selectedVariants.length > 0 ? (
+                      item.selectedVariants.map((variant) => {
+                        const variantKey = Object.keys(variant).find(
+                          (key) => key !== "priceInclTax" && key !== "quantity"
+                        );
+                        return (
+                          <div
+                            key={variant[variantKey]}
+                            className="flex flex-col mb-2"
+                          >
+                            <p className="text-[12px]">
+                              {variantKey}: {variant[variantKey]}
+                            </p>
+                            <div className="flex flex-row h-[35px] items-center">
+                              <div className="border px-5 py-[5px] flex items-center justify-center">
+                                {
+                                  quantities[
+                                    `${item.name}-${variant[variantKey]}`
+                                  ]
+                                }
+                              </div>
+                              <div className="flex flex-col">
+                                <i
+                                  className="fa-solid fa-chevron-up text-[10px] leading-[8px] border py-1 px-3 cursor-pointer"
+                                  onClick={() =>
+                                    increaseQuantity(
+                                      `${item.name}-${variant[variantKey]}`
+                                    )
+                                  }
+                                ></i>
+                                <i
+                                  className="fa-solid fa-chevron-down text-[10px] leading-[8px] border py-1 px-3 cursor-pointer"
+                                  onClick={() =>
+                                    decreaseQuantity(
+                                      `${item.name}-${variant[variantKey]}`
+                                    )
+                                  }
+                                ></i>
+                              </div>
+                              <p className="text-[12px] italic font-bold text-[#aaa] ml-3">
+                                {(
+                                  parseInt(variant.priceInclTax) *
+                                  (quantities[
+                                    `${item.name}-${variant[variantKey]}`
+                                  ] || variant.quantity)
+                                ).toFixed(2)}{" "}
+                                €
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="flex flex-row h-[35px] items-center">
+                        <div className="border px-5 py-[5px] flex items-center justify-center">
+                          {quantities[item.name]}
+                        </div>
+                        <div className="flex flex-col">
+                          <i
+                            className="fa-solid fa-chevron-up text-[10px] leading-[8px] border py-1 px-3 cursor-pointer"
+                            onClick={() => increaseQuantity(item.name)}
+                          ></i>
+                          <i
+                            className="fa-solid fa-chevron-down text-[10px] leading-[8px] border py-1 px-3 cursor-pointer"
+                            onClick={() => decreaseQuantity(item.name)}
+                          ></i>
+                        </div>
+                        <p className="text-[12px] italic font-bold text-[#aaa] ml-3">
+                          {(
+                            parseInt(item.priceInclTax) *
+                            (quantities[item.name] || item.quantity)
+                          ).toFixed(2)}{" "}
+                          €
+                        </p>
                       </div>
-                      <div className="flex flex-col">
-                        <i
-                          className="fa-solid fa-chevron-up text-[10px] leading-[8px] border py-1 px-3 cursor-pointer"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            increaseQuantity(item.id);
-                          }}
-                        ></i>
-                        <i
-                          className="fa-solid fa-chevron-down text-[10px] leading-[8px] border py-1 px-3 cursor-pointer"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            decreaseQuantity(item.id);
-                          }}
-                        ></i>
-                      </div>
-                      <p className="text-[12px] italic font-bold text-[#aaa] ml-3">
-                        {(parseInt(item.price) * quantities[item.id]).toFixed(
-                          2
-                        )}{" "}
-                        €
-                      </p>
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>

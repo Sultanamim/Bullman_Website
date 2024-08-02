@@ -87,7 +87,7 @@ export default function ProductDetail(p) {
             expédié sous 48h
           </i>
           {/* pricing section */}
-          <PricingSection variants={variants} product={productDetail} />
+          <PricingSection variants={variants} product={productDetail} id={id} />
           {/* extra content  */}
           <div className="flex flex-row items-center text-[#333] text-[14px] my-2 cursor-pointer">
             <i className="fa-solid fa-list mr-2"></i>

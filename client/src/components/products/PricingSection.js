@@ -1,12 +1,18 @@
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import WeightProgress from "./WeightProgress";
 import { useCart } from "@/context/CartContext";
+import AuthContext from "@/context/AuthContext";
+import axios from "axios";
 
 export default function PricingSection({ variants, product }) {
   // console.log(product);
   const [quantity, setQuantity] = useState(1);
   const [variantQuantities, setVariantQuantities] = useState({});
   const { addToCart } = useCart();
+  const { auth } = useContext(AuthContext);
+  const CART_URL = "http://localhost:3001/cart";
+
+  // console.log(auth.token);
 
   useEffect(() => {
     if (typeof variants !== "number") {
@@ -85,40 +91,50 @@ export default function PricingSection({ variants, product }) {
     return max;
   }, 0);
 
-  const handleAddToCart = () => {
+  const generateUniqueKey = (variantKey, variantQuantity) => {
     if (typeof variants === "number") {
-      const productToAdd = {
-        name: product.name,
-        image: product.primary_image,
-        priceInclTax: calculateTotalPriceInclTax(),
-        priceExclTax: calculateTotalPriceExclTax(),
-        quantity: quantity,
-        variants: variants,
-        product: product,
-      };
-      addToCart(productToAdd);
-      console.log(productToAdd);
-    } else {
-      const selectedVariants = Object.entries(variants)
-        .filter(([key, value]) => variantQuantities[key] > 0)
-        .map(([key, value]) => ({
-          ...value,
-          quantity: variantQuantities[key],
-          priceInclTax: value.price_incl_tax,
-          priceExclTax: value.price_excl_tax,
-        }));
-
-      const productToAdd = {
-        name: product.name,
-        image: product.primary_image,
-        selectedVariants: selectedVariants,
-        product: product,
-      };
-      addToCart(productToAdd);
-      //console.log(productToAdd);
+      return `${product.name}-${quantity}`;
     }
+    return `${product.name}-${variantKey}-${variantQuantity}`;
   };
 
+  const handleAddToCart = () => {
+    const productToAdd = {
+      name: product.name,
+      image: product.primary_image,
+      priceInclTax: calculateTotalPriceInclTax(),
+      priceExclTax: calculateTotalPriceExclTax(),
+      quantity: quantity,
+      selectedVariants: [],
+      uniqueKey: generateUniqueKey(),
+    };
+
+    if (typeof variants === "number") {
+      productToAdd.variants = JSON.stringify(variants);
+      addToCart(productToAdd);
+    } else {
+      const productsToAdd = [];
+      Object.entries(variants).forEach(([key, value]) => {
+        if (variantQuantities[key] > 0) {
+          productsToAdd.push({
+            ...productToAdd,
+            quantity: variantQuantities[key],
+            variants: key,
+            selectedVariants: [
+              {
+                ...value,
+                quantity: variantQuantities[key],
+                priceInclTax: value.price_incl_tax,
+                priceExclTax: value.price_excl_tax,
+              },
+            ],
+            uniqueKey: generateUniqueKey(key, variantQuantities[key]),
+          });
+        }
+      });
+      productsToAdd.forEach((item) => addToCart(item));
+    }
+  };
   return (
     <div>
       {/* --- buttons ---- */}

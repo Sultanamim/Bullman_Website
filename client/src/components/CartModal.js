@@ -17,7 +17,7 @@ export default function CartModal({ showCart, setShowCart }) {
   useEffect(() => {
     const initialQuantities = {};
     cartItems.forEach((item) => {
-      if (item.selectedVariants) {
+      if (item.selectedVariants.length > 0) {
         item.selectedVariants.forEach((variant) => {
           const variantKey = Object.keys(variant).find(
             (key) => key !== "priceInclTax" && key !== "quantity"
@@ -57,25 +57,30 @@ export default function CartModal({ showCart, setShowCart }) {
     let totalWithVAT = 0;
 
     cartItems.forEach((item) => {
-      if (item.selectedVariants) {
+      if (item.selectedVariants.length > 0) {
         item.selectedVariants.forEach((variant) => {
           const variantKey = Object.keys(variant).find(
             (key) => key !== "priceInclTax" && key !== "quantity"
           );
           const itemKey = `${item.name}-${variant[variantKey]}`;
-          const itemTotal =
-            variant.priceInclTax * (quantities[itemKey] || variant.quantity);
-          totalWithoutVAT += itemTotal;
+          const variantQuantity = quantities[itemKey] || variant.quantity;
+          const itemTotalExclVAT = variant.priceExclTax * variantQuantity;
+          const itemTotalInclVAT = variant.priceInclTax * variantQuantity;
+
+          totalWithoutVAT += itemTotalExclVAT;
+          totalWithVAT += itemTotalInclVAT;
+          totalVAT += itemTotalInclVAT - itemTotalExclVAT;
         });
       } else {
-        const itemTotal =
-          item.priceInclTax * (quantities[item.name] || item.quantity);
-        totalWithoutVAT += itemTotal;
+        const itemQuantity = quantities[item.name] || item.quantity;
+        const itemTotalExclVAT = item.priceExclTax * itemQuantity;
+        const itemTotalInclVAT = item.priceInclTax * itemQuantity;
+
+        totalWithoutVAT += itemTotalExclVAT;
+        totalWithVAT += itemTotalInclVAT;
+        totalVAT += itemTotalInclVAT - itemTotalExclVAT;
       }
     });
-
-    totalVAT = totalWithoutVAT * 0.2; // Assuming 20% VAT
-    totalWithVAT = totalWithoutVAT + totalVAT;
 
     setTotalWithoutVAT(totalWithoutVAT.toFixed(2));
     setTotalVAT(totalVAT.toFixed(2));
@@ -99,25 +104,26 @@ export default function CartModal({ showCart, setShowCart }) {
         {cartItems.length > 0 ? (
           cartItems.map((item) => (
             <div
-              key={item.id}
+              key={item._id}
               className="relative flex flex-row items-center bg-white shadow-lg border border-[#315593] p-[10px] mt-2"
             >
               <i
                 className="fa-solid fa-xmark absolute top-2 right-2 text-[#333] text-[14px] cursor-pointer"
-                onClick={() => removeFromCart(item.id)}
+                onClick={() => removeFromCart(item.uniqueKey)}
               ></i>
               <Link
-                href={
-                  item.product.products
-                    ? {
-                        pathname: `/package-shop/${item.name}`,
-                        query: { product: JSON.stringify(item.product) },
-                      }
-                    : {
-                        pathname: `/shop/${item.name}`,
-                        query: { product: JSON.stringify(item.product) },
-                      }
-                }
+                // href={
+                //   item.product.products
+                //     ? {
+                //         pathname: `/package-shop/${item.name}`,
+                //         query: { product: JSON.stringify(item.product) },
+                //       }
+                //     : {
+                //         pathname: `/shop/${item.name}`,
+                //         query: { product: JSON.stringify(item.product) },
+                //       }
+                // }
+                href="#"
               >
                 <Image
                   src={item.image}
@@ -128,21 +134,22 @@ export default function CartModal({ showCart, setShowCart }) {
               </Link>
               <div className="flex flex-col mx-5">
                 <Link
-                  href={
-                    item.product.products
-                      ? {
-                          pathname: `/package-shop/${item.name}`,
-                          query: { product: JSON.stringify(item.product) },
-                        }
-                      : {
-                          pathname: `/shop/${item.name}`,
-                          query: { product: JSON.stringify(item.product) },
-                        }
-                  }
+                  // href={
+                  //   item.product.products
+                  //     ? {
+                  //         pathname: `/package-shop/${item.name}`,
+                  //        // query: { product: JSON.stringify(item.product) },
+                  //       }
+                  //     : {
+                  //         pathname: `/shop/${item.name}`,
+                  //        // query: { product: JSON.stringify(item.product) },
+                  //       }
+                  // }
+                  href="#"
                 >
                   <p className="text-[#333] text-[14px] mb-3">{item.name}</p>
                 </Link>
-                {item.selectedVariants ? (
+                {item.selectedVariants.length > 0 ? (
                   item.selectedVariants.map((variant) => {
                     const variantKey = Object.keys(variant).find(
                       (key) => key !== "priceInclTax" && key !== "quantity"
@@ -237,7 +244,11 @@ export default function CartModal({ showCart, setShowCart }) {
                 <p className="font-[800]">{totalVAT} €</p>
               </div>
               <div className="flex flex-row items-center justify-between border-b border-[#d2d2d2] py-[3px] mb-[10px]">
-                <p>Total (TTC) :</p>
+                <p>Total HT : :</p>
+                <p className="font-[800]">{totalWithoutVAT} €</p>
+              </div>
+              <div className="flex flex-row items-center justify-between border-b border-[#d2d2d2] py-[3px] mb-[10px]">
+                <p>Total TTC :</p>
                 <p className="font-[800]">{totalWithVAT} €</p>
               </div>
             </div>
@@ -245,28 +256,28 @@ export default function CartModal({ showCart, setShowCart }) {
             <CartProductSlider />
           </>
         ) : null}
-        {cartItems.length > 0 ? (
-          <>
-            {/* Bottom content */}
-            <div className="flex-shrink-0 bg-[#f0efef] flex flex-row items-center justify-between -mb-[4px]">
-              <button
-                className="w-[65%] text-[1rem] font-medium tracking-[.1em] py-[13px] px-[15px] bg-navyBlue hover:bg-darkSlate text-white border-2 border-[#000] m-1"
-                onClick={() => router.push("/order")}
-              >
-                Commander
-              </button>
-              <div className="px-[7px] text-center">
-                <p className="text-[15px] text-[#444] font-medium leading-[16px]">
-                  Total de la commande
-                </p>
-                <p className="text-[15px] text-[#444] font-[900]">
-                  {totalWithVAT} €
-                </p>
-              </div>
-            </div>
-          </>
-        ) : null}
       </div>
+      {cartItems.length > 0 ? (
+        <>
+          {/* Bottom content */}
+          <div className="flex-shrink-0 bg-[#f0efef] flex flex-row items-center justify-between -mb-[4px]">
+            <button
+              className="w-[65%] text-[1rem] font-medium tracking-[.1em] py-[13px] px-[15px] bg-navyBlue hover:bg-darkSlate text-white border-2 border-[#000] m-1"
+              onClick={() => router.push("/order")}
+            >
+              Commander
+            </button>
+            <div className="px-[7px] text-center">
+              <p className="text-[15px] text-[#444] font-medium leading-[16px]">
+                Total de la commande
+              </p>
+              <p className="text-[15px] text-[#444] font-[900]">
+                {totalWithVAT} €
+              </p>
+            </div>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }

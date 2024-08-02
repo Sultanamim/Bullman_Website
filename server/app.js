@@ -9,6 +9,7 @@ const authRouter = require("./routes/auth");
 const paymentsRoute = require("./routes/payment");
 const webhookRoute = require("./routes/webhook");
 const odooRoutes = require("./routes/odooRoutes");
+const cartRoutes = require("./routes/cart");
 
 const app = express();
 app.use(express.json());
@@ -22,5 +23,6 @@ app.use("/auth", authRouter);
 app.use("/payments", paymentsRoute);
 app.use("/webhook", webhookRoute);
 app.use("/odoo", odooRoutes);
+app.use("/cart", cartRoutes);
 
 module.exports = app;
